@@ -176,11 +176,19 @@ install(TARGETS test_sim_repeat
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-# Build run_euroc executable when building without ROS and Pangolin is available
+# Build run_euroc and run_openloris executables when building without ROS and Pangolin is available
 if ((NOT catkin_FOUND OR NOT ENABLE_ROS) AND Pangolin_FOUND)
     add_executable(run_euroc src/run_euroc.cpp)
     target_link_libraries(run_euroc ov_msckf_lib ${thirdparty_libraries})
     install(TARGETS run_euroc
+            ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
+    
+    add_executable(run_openloris src/run_openloris.cpp)
+    target_link_libraries(run_openloris ov_msckf_lib ${thirdparty_libraries})
+    install(TARGETS run_openloris
             ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
             LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
             RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

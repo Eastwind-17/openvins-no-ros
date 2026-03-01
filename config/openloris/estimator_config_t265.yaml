@@ -66,11 +66,11 @@ filepath_std: "/tmp/openloris_t265_estimate_std.txt"
 filepath_gt: "/tmp/openloris_t265_groundtruth.txt"
 
 # feature tracking - T265 fisheye cameras
-use_klt: false
+use_klt: true
 num_pts: 200
 fast_threshold: 15
-grid_x: 5
-grid_y: 5
+grid_x: 10
+grid_y: 10
 min_px_dist: 15
 knn_ratio: 0.70
 track_frequency: 30.0  # T265 fisheye fps
