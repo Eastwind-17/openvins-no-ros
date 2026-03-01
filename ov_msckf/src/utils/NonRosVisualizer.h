@@ -21,6 +21,7 @@
 #ifndef OV_MSCKF_NONROS_VISUALIZER_H
 #define OV_MSCKF_NONROS_VISUALIZER_H
 
+#include <eigen3/Eigen/src/Core/Matrix.h>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -47,7 +48,7 @@ public:
    * @brief Constructor
    * @param app VioManager instance
    */
-  NonRosVisualizer(std::shared_ptr<VioManager> app) : app_(app), follow_camera_(true), show_features_(true) {
+  NonRosVisualizer(std::shared_ptr<VioManager> app) : app_(app), follow_camera_(true), camera_view_(false), show_features_(true) {
     // Initialize Pangolin window
     pangolin::CreateWindowAndBind("OpenVINS Trajectory", 1280, 720);
     glEnable(GL_DEPTH_TEST);
@@ -55,9 +56,10 @@ public:
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Define projection and initial ModelView matrix
+    // Using Z-up coordinate system (more intuitive)
     s_cam_ = pangolin::OpenGlRenderState(
         pangolin::ProjectionMatrix(1280, 720, 500, 500, 640, 360, 0.1, 1000),
-        pangolin::ModelViewLookAt(0, -5, -10, 0, 0, 0, 0, -1, 0));
+        pangolin::ModelViewLookAt(0, 5, 10, 0, 0, 0, 0, 0, 1));
 
     // Create control panel
     pangolin::CreatePanel("ui")
@@ -70,6 +72,7 @@ public:
 
     // Create UI controls
     menu_follow_camera_ = new pangolin::Var<bool>("ui.Follow Camera", true, true);
+    menu_camera_view_ = new pangolin::Var<bool>("ui.Camera View", false, true);
     menu_show_features_ = new pangolin::Var<bool>("ui.Show Features", true, true);
     menu_show_grid_ = new pangolin::Var<bool>("ui.Show Grid", true, true);
     menu_reset_view_ = new pangolin::Var<bool>("ui.Reset View", false, false);
@@ -234,14 +237,27 @@ private:
 
     // Update UI state
     follow_camera_ = menu_follow_camera_->Get();
+    camera_view_ = menu_camera_view_->Get();
     show_features_ = menu_show_features_->Get();
     bool show_grid = menu_show_grid_->Get();
 
-    // Handle view mode buttons
-    if (pangolin::Pushed(*menu_reset_view_)) {
-      s_cam_.SetModelViewMatrix(pangolin::ModelViewLookAt(0, -5, -10, 0, 0, 0, 0, -1, 0));
+    // Camera View and Follow Camera are mutually exclusive
+    if (camera_view_ && follow_camera_) {
       follow_camera_ = false;
       menu_follow_camera_->operator=(false);
+    }
+    if (follow_camera_ && camera_view_) {
+      camera_view_ = false;
+      menu_camera_view_->operator=(false);
+    }
+
+    // Handle view mode buttons
+    if (pangolin::Pushed(*menu_reset_view_)) {
+      s_cam_.SetModelViewMatrix(pangolin::ModelViewLookAt(0, 5, 10, 0, 0, 0, 0, 0, 1));
+      follow_camera_ = false;
+      camera_view_ = false;
+      menu_follow_camera_->operator=(false);
+      menu_camera_view_->operator=(false);
     }
     if (pangolin::Pushed(*menu_top_view_)) {
       // Get current trajectory center
@@ -250,22 +266,41 @@ private:
         center = trajectory_.back();
       }
       s_cam_.SetModelViewMatrix(pangolin::ModelViewLookAt(
-          center(0), center(1), center(2) + 20,  // Camera 20m above current position
+          center(0), center(1), center(2) + 20,  // Camera 20m above current position (Z-up)
           center(0), center(1), center(2),        // Look at current position
-          0, 1, 0));                              // Y-axis up
+          0, 1, 0));                              // Y-axis forward (horizontal)
       follow_camera_ = false;
+      camera_view_ = false;
       menu_follow_camera_->operator=(false);
+      menu_camera_view_->operator=(false);
     }
 
-    // Follow camera mode: update view to follow current position
-    if (follow_camera_ && app_->initialized() && !trajectory_.empty()) {
+    // Camera View mode: first-person view from IMU/camera position
+    if (camera_view_ && app_->initialized() && !trajectory_.empty()) {
       auto state = app_->get_state();
       Eigen::Vector3d pos = state->_imu->pos();
-      Eigen::Vector4d quat_JPL = state->_imu->quat();
+      Eigen::Matrix3d R_GtoI = state->_imu->Rot();
+      Eigen::Matrix3d R_ItoG = R_GtoI.transpose();
       
-      // Convert JPL to Hamilton quaternion
-      Eigen::Quaterniond q_Hamilton(quat_JPL(3), quat_JPL(0), quat_JPL(1), quat_JPL(2));
-      Eigen::Matrix3d R_GtoI = q_Hamilton.toRotationMatrix();
+      // Look direction: forward in IMU frame is +Z axis
+      Eigen::Vector3d look_dir_I(0, 0, 1);  // Forward in IMU frame
+      Eigen::Vector3d look_dir_G = R_ItoG * look_dir_I;
+      Eigen::Vector3d look_at = pos + look_dir_G;
+      
+      // Up direction: -Y axis in IMU frame
+      Eigen::Vector3d up_dir_I(0, -1, 0);
+      Eigen::Vector3d up_dir_G = R_ItoG * up_dir_I;
+      
+      s_cam_.SetModelViewMatrix(pangolin::ModelViewLookAt(
+          pos(0), pos(1), pos(2),                 // Camera at IMU position
+          look_at(0), look_at(1), look_at(2),     // Look forward
+          up_dir_G(0), up_dir_G(1), up_dir_G(2)));// Up direction
+    }
+    // Follow camera mode: update view to follow current position from behind
+    else if (follow_camera_ && app_->initialized() && !trajectory_.empty()) {
+      auto state = app_->get_state();
+      Eigen::Vector3d pos = state->_imu->pos();
+      Eigen::Matrix3d R_GtoI = state->_imu->Rot();
       Eigen::Matrix3d R_ItoG = R_GtoI.transpose();
       
       // Camera looks from behind and above the robot
@@ -275,7 +310,7 @@ private:
       s_cam_.SetModelViewMatrix(pangolin::ModelViewLookAt(
           cam_pos_G(0), cam_pos_G(1), cam_pos_G(2),  // Camera position
           pos(0), pos(1), pos(2),                     // Look at current position
-          0, 0, -1));                                 // Z-axis up
+          0, 0, 1));                                  // Z-axis up
     }
 
     d_cam_.Activate(s_cam_);
@@ -300,95 +335,26 @@ private:
       }
       glEnd();
 
-      // Draw current camera pose(s)
+      // Draw current IMU pose
       if (!trajectory_.empty() && app_->initialized()) {
         auto state = app_->get_state();
         Eigen::Vector3d pos_IinG = state->_imu->pos();
-        
-        // Get rotation matrix from state
-        // According to State.h:146, _imu stores (q_GtoI, p_IinG)
-        // So Rot() returns R_GtoI (rotation from Global to IMU frame)
-        // For visualization, we need T_ItoG (IMU pose in Global frame)
         Eigen::Matrix3d R_GtoI = state->_imu->Rot();
+        
+        // Convert to IMU pose in Global frame: R_ItoG = R_GtoI^T
+        // Apply coordinate transformation from Y-down to Z-up:
+        // X stays X, Y_old (down) becomes -Z_new (up), Z_old (forward) becomes Y_new
+      
+
         Eigen::Matrix3d R_ItoG = R_GtoI.transpose();
         
-        // Create transformation matrix T_ItoG (IMU to Global)
-        Eigen::Matrix4d T_ItoG = Eigen::Matrix4d::Identity();
-        T_ItoG.block<3, 3>(0, 0) = R_ItoG;
-        T_ItoG.block<3, 1>(0, 3) = pos_IinG;
+        // Create IMU pose transformation
+        Eigen::Matrix4d Twi = Eigen::Matrix4d::Identity();
+        Twi.block<3, 3>(0, 0) = R_ItoG;
+        Twi.block<3, 1>(0, 3) = pos_IinG;
         
-        // Draw IMU coordinate frame
-        draw_axes(T_ItoG, 0.5);
-        
-        // Store camera positions in global frame for baseline visualization
-        std::vector<Eigen::Vector3d> cam_positions;
-        std::vector<size_t> cam_ids;
-        
-        // Draw camera frustum for each camera
-        for (const auto& calib_pair : state->_calib_IMUtoCAM) {
-          size_t cam_id = calib_pair.first;
-          auto calib_cam = calib_pair.second;
-          
-          // Get extrinsics from state
-          // According to State.h:158, _calib_IMUtoCAM stores (R_ItoC, p_IinC)
-          Eigen::Matrix3d R_ItoC = calib_cam->Rot();
-          Eigen::Vector3d p_IinC = calib_cam->pos();
-          
-          // Compute R_GtoC (Global to Camera)
-          // R_GtoC = R_ItoC * R_GtoI
-          Eigen::Matrix3d R_GtoC = R_ItoC * R_GtoI;
-          
-          // For OpenGL, we need Camera pose in Global frame (T_CtoG)
-          // R_CtoG = R_GtoC^T
-          Eigen::Matrix3d R_CtoG = R_GtoC.transpose();
-          
-          // Camera position in Global frame:
-          // p_CinG = p_IinG - R_GtoC^T * p_IinC
-          Eigen::Vector3d p_CinG = pos_IinG - R_CtoG * p_IinC;
-          
-          // Create T_CtoG transformation
-          Eigen::Matrix4d T_CtoG = Eigen::Matrix4d::Identity();
-          T_CtoG.block<3, 3>(0, 0) = R_CtoG;
-          T_CtoG.block<3, 1>(0, 3) = p_CinG;
-          
-          // Extract camera position in global frame
-          Eigen::Vector3d cam_pos_G = T_CtoG.block<3, 1>(0, 3);
-          cam_positions.push_back(cam_pos_G);
-          cam_ids.push_back(cam_id);
-          
-          // Draw camera frustum with different colors for different cameras
-          if (cam_id == 0) {
-            draw_camera(T_CtoG, 0.3, 0.2, 0.5, 1.0, 0.0, 0.0); // Red for cam0
-            // Draw small sphere at camera center
-            glPushMatrix();
-            glTranslated(cam_pos_G(0), cam_pos_G(1), cam_pos_G(2));
-            glColor3f(1.0, 0.0, 0.0);
-            pangolin::glDrawCircle(0, 0, 0.05); // 5cm radius sphere
-            glPopMatrix();
-          } else if (cam_id == 1) {
-            draw_camera(T_CtoG, 0.3, 0.2, 0.5, 0.0, 1.0, 0.0); // Green for cam1
-            // Draw small sphere at camera center
-            glPushMatrix();
-            glTranslated(cam_pos_G(0), cam_pos_G(1), cam_pos_G(2));
-            glColor3f(0.0, 1.0, 0.0);
-            pangolin::glDrawCircle(0, 0, 0.05); // 5cm radius sphere
-            glPopMatrix();
-          } else {
-            draw_camera(T_CtoG, 0.3, 0.2, 0.5, 0.0, 0.0, 1.0); // Blue for others
-          }
-        }
-        
-        // Draw baseline between stereo cameras (if we have 2+ cameras)
-        if (cam_positions.size() >= 2) {
-          glLineWidth(3);
-          glColor3f(1.0, 1.0, 0.0); // Yellow baseline
-          glBegin(GL_LINES);
-          for (size_t i = 0; i < cam_positions.size() - 1; i++) {
-            glVertex3d(cam_positions[i](0), cam_positions[i](1), cam_positions[i](2));
-            glVertex3d(cam_positions[i+1](0), cam_positions[i+1](1), cam_positions[i+1](2));
-          }
-          glEnd();
-        }
+        // Draw coordinate axes at IMU position
+        draw_axes(Twi, 0.5);
 
         // Draw SLAM features if enabled
         if (show_features_) {
@@ -422,6 +388,7 @@ private:
 
   // UI controls
   pangolin::Var<bool> *menu_follow_camera_;
+  pangolin::Var<bool> *menu_camera_view_;
   pangolin::Var<bool> *menu_show_features_;
   pangolin::Var<bool> *menu_show_grid_;
   pangolin::Var<bool> *menu_reset_view_;
@@ -429,6 +396,7 @@ private:
 
   // Visualization state
   bool follow_camera_;
+  bool camera_view_;
   bool show_features_;
 
   // Trajectory storage
