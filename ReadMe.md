@@ -1,4 +1,40 @@
-# OpenVINS
+# OpenVINS - Standalone ROS-Free Version
+
+> **Note**: This is a standalone, ROS-free implementation based on [OpenVINS](https://github.com/rpng/open_vins) by the Robot Perception and Navigation Group (RPNG) at the University of Delaware. This version removes all ROS dependencies and adds enhanced visualization features for running directly on EuRoC datasets.
+>
+> **Original Project**: https://github.com/rpng/open_vins  
+> **License**: GPL-3.0 (same as original)  
+> **Attribution**: All core algorithms and filter implementations are from the original OpenVINS project.
+
+## Quick Start (ROS-Free Version)
+
+This repository provides a **completely standalone** implementation that runs without ROS:
+
+1. **Build**: `./build_no_ros.sh` (builds with `-DENABLE_ROS=OFF`)
+2. **Run**: `./run_euroc_custom.sh` (processes EuRoC dataset with visualization)
+3. **Documentation**: See [README_NO_ROS.md](README_NO_ROS.md) for detailed instructions (Chinese)
+
+### Key Features of This ROS-Free Version
+
+- **Zero ROS dependencies** - runs as a standalone C++ application
+- **EuRoC dataset loader** - directly loads IMU and camera data from EuRoC format
+- **Enhanced 3D visualization** with Pangolin:
+  - Camera frustum model showing current pose
+  - Black background for reduced eye strain
+  - Cyan trajectory line for better visibility
+  - RGB coordinate axes at origin
+- **Real-time feature tracking display** with OpenCV
+- **Simple build and run scripts** for quick testing
+
+For complete documentation, see:
+- [README_NO_ROS.md](README_NO_ROS.md) - Quick start guide
+- [USAGE_NO_ROS.md](USAGE_NO_ROS.md) - Comprehensive usage guide (Chinese)
+- [VISUALIZATION_FEATURES.md](VISUALIZATION_FEATURES.md) - Visualization details
+- [FINAL_STATUS.md](FINAL_STATUS.md) - Technical implementation summary
+
+---
+
+## Original OpenVINS Project
 
 [![ROS 1 Workflow](https://github.com/rpng/open_vins/actions/workflows/build_ros1.yml/badge.svg)](https://github.com/rpng/open_vins/actions/workflows/build_ros1.yml)
 [![ROS 2 Workflow](https://github.com/rpng/open_vins/actions/workflows/build_ros2.yml/badge.svg)](https://github.com/rpng/open_vins/actions/workflows/build_ros2.yml)

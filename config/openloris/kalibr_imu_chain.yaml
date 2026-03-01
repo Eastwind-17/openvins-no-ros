@@ -1,0 +1,49 @@
+%YAML:1.0
+
+imu0:
+  T_i_b:
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
+    - [0.0, 0.0, 0.0, 1.0]
+  
+  # Noise parameters from OpenLORIS sensors.yaml
+  # d400_gyroscope noise_variances: 1.0296e-05
+  # d400_accelerometer noise_variances: 2.6781e-04
+  accelerometer_noise_density: 0.01636  # sqrt(2.6781e-04)
+  accelerometer_random_walk: 0.005      # sqrt(2.5e-05)
+  gyroscope_noise_density: 0.00321      # sqrt(1.0296e-05)
+  gyroscope_random_walk: 0.0005         # sqrt(2.5e-07)
+  
+  rostopic: /d400/imu
+  time_offset: 0.0
+  update_rate: 400  # d400_gyroscope fps
+  
+  model: "kalibr"
+  
+  # IMU intrinsic calibration from sensors.yaml (d400_gyroscope)
+  # imu_intrinsic: [1, 0, 0, -1.248e-05, 0, 1, 0, -5.614e-06, 0, 0, 1, -7.177e-06]
+  Tw:
+    - [ 1.0, 0.0, 0.0 ]
+    - [ 0.0, 1.0, 0.0 ]
+    - [ 0.0, 0.0, 1.0 ]
+  R_IMUtoGYRO:
+    - [ 1.0, 0.0, 0.0 ]
+    - [ 0.0, 1.0, 0.0 ]
+    - [ 0.0, 0.0, 1.0 ]
+  
+  # d400_accelerometer intrinsics
+  Ta:
+    - [ 1.0125081539154053, 0.001348053221590817, -0.001829580985940993 ]
+    - [ 0.011354702524840832, 1.0199391841888428, -0.001782262232154608 ]
+    - [ -0.03568604961037636, -0.0008364256354980171, 1.0208263397216797 ]
+  R_IMUtoACC:
+    - [ 1.0, 0.0, 0.0 ]
+    - [ 0.0, 1.0, 0.0 ]
+    - [ 0.0, 0.0, 1.0 ]
+  
+  # Gyroscope gravity sensitivity (Tg)
+  Tg:
+    - [ 0.0, 0.0, 0.0 ]
+    - [ 0.0, 0.0, 0.0 ]
+    - [ 0.0, 0.0, 0.0 ]

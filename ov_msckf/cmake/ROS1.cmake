@@ -30,6 +30,18 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
 )
 
+# Find Pangolin (optional, for non-ROS visualization)
+if (NOT catkin_FOUND OR NOT ENABLE_ROS)
+    find_package(Pangolin QUIET)
+    if (Pangolin_FOUND)
+        message(STATUS "Found Pangolin: ${Pangolin_VERSION}")
+        add_definitions(-DHAS_PANGOLIN=1)
+    else()
+        message(WARNING "Pangolin not found, trajectory visualization will be disabled")
+        add_definitions(-DHAS_PANGOLIN=0)
+    endif()
+endif()
+
 # Set link libraries used by all binaries
 list(APPEND thirdparty_libraries
         ${Boost_LIBRARIES}
@@ -37,6 +49,12 @@ list(APPEND thirdparty_libraries
         ${CERES_LIBRARIES}
         ${catkin_LIBRARIES}
 )
+
+# Add Pangolin if available
+if (Pangolin_FOUND)
+    list(APPEND thirdparty_libraries ${Pangolin_LIBRARIES})
+    include_directories(${Pangolin_INCLUDE_DIRS})
+endif()
 
 # If we are not building with ROS then we need to manually link to its headers
 # This isn't that elegant of a way, but this at least allows for building without ROS
@@ -157,4 +175,15 @@ install(TARGETS test_sim_repeat
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+# Build run_euroc executable when building without ROS and Pangolin is available
+if ((NOT catkin_FOUND OR NOT ENABLE_ROS) AND Pangolin_FOUND)
+    add_executable(run_euroc src/run_euroc.cpp)
+    target_link_libraries(run_euroc ov_msckf_lib ${thirdparty_libraries})
+    install(TARGETS run_euroc
+            ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+            RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    )
+endif()
 
