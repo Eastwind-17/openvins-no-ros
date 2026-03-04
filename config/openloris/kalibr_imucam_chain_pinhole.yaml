@@ -1,0 +1,49 @@
+%YAML:1.0
+
+cam0:
+  T_cam_imu:
+    # Using T265 camera-IMU extrinsics (same sensor setup)
+    - [-9.9992633141677389e-01, -4.9039224756951853e-03,  1.1103300578872334e-02,  1.0699998587400001e-02]
+    - [ 4.9341275780694404e-03, -9.9998419659493765e-01,  2.6946141507085820e-03,  0.0]
+    - [ 1.1089910930018767e-02,  2.7492007438955665e-03,  9.9993472575505349e-01,  0.0]
+    - [ 0.0, 0.0, 0.0, 1.0]
+  
+  cam_overlaps: [1]
+  camera_model: pinhole
+  
+  # Camera1 (left) intrinsics from provided config
+  intrinsics: [254.3928153045, 254.3928153045, 354.9341066832, 84.7966105271]
+  
+  # Radtan distortion model (no distortion in your case)
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0]
+  distortion_model: radtan
+  
+  # Resolution from provided config
+  resolution: [640, 400]
+  
+  rostopic: /cam0/image_raw
+  timeshift_cam_imu: 0.0
+
+cam1:
+  T_cam_imu:
+    # Using T265 camera-IMU extrinsics (same sensor setup)
+    - [-0.9999783 , -0.00454895,  0.00476415, -0.05337982]
+    - [ 0.00457962, -0.99996873,  0.00644655, -0.00012782]
+    - [ 0.00473468,  0.00646823,  0.99996787,  0.00027013]
+    - [ 0.0, 0.0, 0.0, 1.0]
+  
+  cam_overlaps: [0]
+  camera_model: pinhole
+  
+  # Camera2 (right) intrinsics from provided config (same as cam0)
+  intrinsics: [254.3928153045, 254.3928153045, 354.9341066832, 84.7966105271]
+  
+  # Radtan distortion model (no distortion in your case)
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0]
+  distortion_model: radtan
+  
+  # Resolution from provided config
+  resolution: [640, 400]
+  
+  rostopic: /cam1/image_raw
+  timeshift_cam_imu: 0.0

@@ -1,0 +1,54 @@
+%YAML:1.0
+
+imu0:
+  T_i_b:
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
+    - [0.0, 0.0, 0.0, 1.0]
+  
+  # Noise parameters from OpenLORIS sensors.yaml - T265
+  # t265_gyroscope noise_variances: 5.1480301408446394e-06
+  # t265_accelerometer noise_variances: 6.6952452471014112e-05
+  accelerometer_noise_density: 0.00818  # sqrt(6.6952452471014112e-05)
+  accelerometer_random_walk: 0.01       # sqrt(1e-04)
+  gyroscope_noise_density: 0.00227      # sqrt(5.1480301408446394e-06)
+  gyroscope_random_walk: 0.000707       # sqrt(5e-07)
+  
+  rostopic: /t265/imu
+  time_offset: 0.0
+  update_rate: 200  # t265_gyroscope fps
+  
+  model: "kalibr"
+  
+  # IMU intrinsic calibration from sensors.yaml (t265_gyroscope)
+  # imu_intrinsic: [9.9157768487930298e-01, 0., 0., 2.0551718771457672e-03, 
+  #                 0., 9.9392437934875488e-01, 0., -2.2062547504901886e-03, 
+  #                 0., 0., 9.9780356884002686e-01, 4.3819320853799582e-04]
+  Tw:
+    - [ 9.9157768487930298e-01, 0.0, 0.0 ]
+    - [ 0.0, 9.9392437934875488e-01, 0.0 ]
+    - [ 0.0, 0.0, 9.9780356884002686e-01 ]
+  R_IMUtoGYRO:
+    - [ 1.0, 0.0, 0.0 ]
+    - [ 0.0, 1.0, 0.0 ]
+    - [ 0.0, 0.0, 1.0 ]
+  
+  # t265_accelerometer intrinsics
+  # imu_intrinsic: [1.0144170522689819e+00, 0., 0., -1.1339300125837326e-01,
+  #                 0., 1.0123971700668335e+00, 0., 4.7884002327919006e-02, 
+  #                 0., 0., 1.0261071920394897e+00, -8.3623267710208893e-02]
+  Ta:
+    - [ 1.0144170522689819e+00, 0.0, 0.0 ]
+    - [ 0.0, 1.0123971700668335e+00, 0.0 ]
+    - [ 0.0, 0.0, 1.0261071920394897e+00 ]
+  R_IMUtoACC:
+    - [ 1.0, 0.0, 0.0 ]
+    - [ 0.0, 1.0, 0.0 ]
+    - [ 0.0, 0.0, 1.0 ]
+  
+  # Gyroscope gravity sensitivity (Tg)
+  Tg:
+    - [ 0.0, 0.0, 0.0 ]
+    - [ 0.0, 0.0, 0.0 ]
+    - [ 0.0, 0.0, 0.0 ]

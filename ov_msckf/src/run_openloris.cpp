@@ -93,23 +93,32 @@ int main(int argc, char **argv) {
   // Load OpenLoris dataset
   OpenLorisLoader loader(dataset_path);
 
-  // Load IMU data from T265 sensor
-  PRINT_INFO("Loading IMU data from T265 sensor...\n");
-  if (!loader.loadImuData("t265")) {
-    PRINT_ERROR(RED "Failed to load IMU data\n" RESET);
+  // Get dataset-specific names from config (with defaults for backward compatibility)
+  std::string imu_prefix = "t265";
+  std::string cam0_name = "fisheye1";
+  std::string cam1_name = "fisheye2";
+  
+  parser->parse_config("openloris_imu_prefix", imu_prefix, false);
+  parser->parse_config("openloris_cam0_name", cam0_name, false);
+  parser->parse_config("openloris_cam1_name", cam1_name, false);
+
+  // Load IMU data
+  PRINT_INFO("Loading IMU data from %s sensor...\n", imu_prefix.c_str());
+  if (!loader.loadImuData(imu_prefix)) {
+    PRINT_ERROR(RED "Failed to load IMU data from %s\n" RESET, imu_prefix.c_str());
     return EXIT_FAILURE;
   }
 
-  // Load camera data for fisheye1 and fisheye2
+  // Load camera data
   PRINT_INFO("Loading camera data...\n");
-  if (!loader.loadCameraData("fisheye1", 0)) {
-    PRINT_ERROR(RED "Failed to load fisheye1 data\n" RESET);
+  if (!loader.loadCameraData(cam0_name, 0)) {
+    PRINT_ERROR(RED "Failed to load %s data\n" RESET, cam0_name.c_str());
     return EXIT_FAILURE;
   }
 
   if (params.state_options.num_cameras > 1) {
-    if (!loader.loadCameraData("fisheye2", 1)) {
-      PRINT_ERROR(RED "Failed to load fisheye2 data\n" RESET);
+    if (!loader.loadCameraData(cam1_name, 1)) {
+      PRINT_ERROR(RED "Failed to load %s data\n" RESET, cam1_name.c_str());
       return EXIT_FAILURE;
     }
   }
@@ -119,9 +128,9 @@ int main(int argc, char **argv) {
   const auto& cam1_data = loader.getCam1Data();
 
   PRINT_INFO("Loaded %zu IMU measurements\n", imu_data.size());
-  PRINT_INFO("Loaded %zu fisheye1 measurements\n", cam0_data.size());
+  PRINT_INFO("Loaded %zu %s measurements\n", cam0_data.size(), cam0_name.c_str());
   if (params.state_options.num_cameras > 1) {
-    PRINT_INFO("Loaded %zu fisheye2 measurements\n", cam1_data.size());
+    PRINT_INFO("Loaded %zu %s measurements\n", cam1_data.size(), cam1_name.c_str());
   }
 
   // Load masks if configured
