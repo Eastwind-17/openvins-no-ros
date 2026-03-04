@@ -22,8 +22,12 @@
 #define OV_MSCKF_NONROS_VISUALIZER_H
 
 #include <eigen3/Eigen/src/Core/Matrix.h>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include <Eigen/Eigen>
@@ -47,8 +51,28 @@ public:
   /**
    * @brief Constructor
    * @param app VioManager instance
+   * @param filepath_traj Path to save TUM format trajectory (empty string to disable)
    */
-  NonRosVisualizer(std::shared_ptr<VioManager> app) : app_(app), follow_camera_(true), camera_view_(false), show_features_(true) {
+  NonRosVisualizer(std::shared_ptr<VioManager> app, const std::string &filepath_traj = "") 
+      : app_(app), follow_camera_(true), camera_view_(false), show_features_(true), save_trajectory_(!filepath_traj.empty()) {
+    
+    // Open trajectory file if path is provided
+    if (save_trajectory_) {
+      std::cout << "[NonRosVisualizer] Attempting to open trajectory file: " << filepath_traj << std::endl;
+      traj_file_.open(filepath_traj);
+      if (!traj_file_.is_open()) {
+        std::cerr << "[NonRosVisualizer] ERROR: Failed to open trajectory file: " << filepath_traj << std::endl;
+        save_trajectory_ = false;
+      } else {
+        // Write TUM format header
+        traj_file_ << "# timestamp(s) tx ty tz qx qy qz qw" << std::endl;
+        traj_file_.flush();  // Force write to disk
+        std::cout << "[NonRosVisualizer] SUCCESS: Trajectory will be saved to: " << filepath_traj << std::endl;
+      }
+    } else {
+      std::cout << "[NonRosVisualizer] Trajectory saving disabled (filepath_traj is empty)" << std::endl;
+    }
+    
     // Initialize Pangolin window
     pangolin::CreateWindowAndBind("OpenVINS Trajectory", 1280, 720);
     glEnable(GL_DEPTH_TEST);
@@ -92,11 +116,18 @@ public:
 
     // Update trajectory
     Eigen::Vector3d pos = state->_imu->pos();
+    Eigen::Vector4d quat = state->_imu->quat();  // qx, qy, qz, qw
+    double timestamp = state->_timestamp;
 
     // Store trajectory
     {
       std::lock_guard<std::mutex> lock(traj_mutex_);
       trajectory_.push_back(pos);
+    }
+
+    // Save to TUM format file if enabled
+    if (save_trajectory_ && traj_file_.is_open()) {
+      save_pose_to_file(timestamp, pos, quat);
     }
 
     // Visualize trajectory with Pangolin
@@ -111,7 +142,36 @@ public:
    */
   bool should_quit() { return pangolin::ShouldQuit(); }
 
+  /**
+   * @brief Destructor - close trajectory file
+   */
+  ~NonRosVisualizer() {
+    if (traj_file_.is_open()) {
+      traj_file_.close();
+      std::cout << "Trajectory file closed." << std::endl;
+    }
+  }
+
 private:
+  /**
+   * @brief Save pose to TUM format file
+   * @param timestamp Timestamp in seconds
+   * @param pos Position (tx, ty, tz)
+   * @param quat Quaternion (qx, qy, qz, qw)
+   */
+  void save_pose_to_file(double timestamp, const Eigen::Vector3d &pos, const Eigen::Vector4d &quat) {
+    std::lock_guard<std::mutex> lock(file_mutex_);
+    
+    // timestamp with 5 decimal places
+    traj_file_ << std::fixed << std::setprecision(5) << timestamp << " ";
+    
+    // position and quaternion with 6 decimal places
+    traj_file_ << std::setprecision(6);
+    traj_file_ << pos.x() << " " << pos.y() << " " << pos.z() << " ";
+    traj_file_ << quat(0) << " " << quat(1) << " " << quat(2) << " " << quat(3);
+    traj_file_ << std::endl;
+  }
+
   /**
    * @brief Draw a ground grid
    */
@@ -402,6 +462,11 @@ private:
   // Trajectory storage
   std::vector<Eigen::Vector3d> trajectory_;
   std::mutex traj_mutex_;
+
+  // TUM format trajectory file
+  bool save_trajectory_;
+  std::ofstream traj_file_;
+  std::mutex file_mutex_;
 };
 
 } // namespace ov_msckf

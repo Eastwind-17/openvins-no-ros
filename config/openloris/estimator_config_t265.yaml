@@ -2,6 +2,8 @@
 
 verbosity: "INFO" # ALL, DEBUG, INFO, WARNING, ERROR, SILENT
 
+filepath_traj: "/home/vector/code/open_vins/traj.txt"
+
 use_fej: true
 integration: "rk4"
 use_stereo: true

@@ -80,8 +80,12 @@ int main(int argc, char **argv) {
   // Create VioManager
   sys = std::make_shared<VioManager>(params);
 
-  // Create visualizer
-  viz = std::make_shared<NonRosVisualizer>(sys);
+  // Get trajectory save path from config (optional)
+  std::string filepath_traj = "";
+  parser->parse_config("filepath_traj", filepath_traj, false);
+  
+  // Create visualizer with optional trajectory saving
+  viz = std::make_shared<NonRosVisualizer>(sys, filepath_traj);
 
   // Set signal handler
   signal(SIGINT, signal_callback_handler);
