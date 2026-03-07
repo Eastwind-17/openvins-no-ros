@@ -36,15 +36,15 @@ zupt_max_disparity: 0.5
 zupt_only_at_beginning: false
 
 # initialization
-init_window_time: 2.0
+init_window_time: 1.0
 init_imu_thresh: 0.5
 init_max_disparity: 10.0
-init_max_features: 30
+init_max_features: 50
 
 init_dyn_use: true
 init_dyn_mle_opt_calib: false
 init_dyn_mle_max_iter: 50
-init_dyn_mle_max_time: 0.05
+init_dyn_mle_max_time: 0.1
 init_dyn_mle_max_threads: 6
 init_dyn_num_pose: 6
 init_dyn_min_deg: 0.0
@@ -106,3 +106,7 @@ relative_config_imucam: "kalibr_imucam_chain_pinhole.yaml"
 openloris_imu_prefix: "t265"
 openloris_cam0_name: "fisheye1_rect"
 openloris_cam1_name: "fisheye2_rect"
+
+# Frame range control (index starts from 0)
+start_frame: 0      # Start processing from this frame index
+end_frame: -1       # End processing at this frame index (-1 means process until the end)

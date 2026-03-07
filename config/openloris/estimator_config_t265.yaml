@@ -101,3 +101,7 @@ mask1: "mask_t265_cam1.png"
 # imu and camera config files for T265
 relative_config_imu: "kalibr_imu_chain_t265.yaml"
 relative_config_imucam: "kalibr_imucam_chain_t265.yaml"
+
+# Frame range control (index starts from 0)
+start_frame: 0      # Start processing from this frame index
+end_frame: -1       # End processing at this frame index (-1 means process until the end)

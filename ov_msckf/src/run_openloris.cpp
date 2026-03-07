@@ -102,6 +102,12 @@ int main(int argc, char **argv) {
   parser->parse_config("openloris_cam0_name", cam0_name, false);
   parser->parse_config("openloris_cam1_name", cam1_name, false);
 
+  // Get frame range control parameters
+  int start_frame = 0;
+  int end_frame = -1;  // -1 means process until the end
+  parser->parse_config("start_frame", start_frame, false);
+  parser->parse_config("end_frame", end_frame, false);
+
   // Load IMU data
   PRINT_INFO("Loading IMU data from %s sensor...\n", imu_prefix.c_str());
   if (!loader.loadImuData(imu_prefix)) {
@@ -132,6 +138,32 @@ int main(int argc, char **argv) {
   if (params.state_options.num_cameras > 1) {
     PRINT_INFO("Loaded %zu %s measurements\n", cam1_data.size(), cam1_name.c_str());
   }
+
+  // Validate and adjust frame range
+  if (start_frame < 0) {
+    PRINT_WARNING(YELLOW "start_frame (%d) is negative, setting to 0\n" RESET, start_frame);
+    start_frame = 0;
+  }
+  if (start_frame >= (int)cam0_data.size()) {
+    PRINT_ERROR(RED "start_frame (%d) exceeds available frames (%zu). Exiting.\n" RESET, start_frame, cam0_data.size());
+    return EXIT_FAILURE;
+  }
+  
+  // Calculate actual end frame (inclusive)
+  size_t actual_end_frame = cam0_data.size();
+  if (end_frame >= 0) {
+    if (end_frame >= (int)cam0_data.size()) {
+      PRINT_WARNING(YELLOW "end_frame (%d) exceeds available frames (%zu), processing until end\n" RESET, end_frame, cam0_data.size());
+      actual_end_frame = cam0_data.size();
+    } else if (end_frame < start_frame) {
+      PRINT_ERROR(RED "end_frame (%d) is less than start_frame (%d). Exiting.\n" RESET, end_frame, start_frame);
+      return EXIT_FAILURE;
+    } else {
+      actual_end_frame = end_frame + 1;  // +1 because we want to include end_frame
+    }
+  }
+  
+  PRINT_INFO(GREEN "Frame range: [%d, %zu) (processing %zu frames)\n" RESET, start_frame, actual_end_frame, actual_end_frame - start_frame);
 
   // Load masks if configured
   cv::Mat mask0, mask1;
@@ -189,12 +221,29 @@ int main(int argc, char **argv) {
 
   // Process data
   size_t imu_idx = 0;
-  size_t cam0_idx = 0;
+  size_t cam0_idx = start_frame;  // Start from specified frame
   size_t cam1_idx = 0;
+
+  // Skip IMU data before start_frame timestamp
+  if (start_frame > 0 && start_frame < (int)cam0_data.size()) {
+    double start_time = cam0_data[start_frame].timestamp;
+    while (imu_idx < imu_data.size() && imu_data[imu_idx].timestamp < start_time) {
+      imu_idx++;
+    }
+    PRINT_INFO("Skipped %zu IMU measurements before frame %d (time: %.3f)\n", imu_idx, start_frame, start_time);
+    
+    // Also skip cam1 data before start_frame timestamp if using stereo
+    if (params.state_options.num_cameras > 1) {
+      while (cam1_idx < cam1_data.size() && cam1_data[cam1_idx].timestamp < start_time - 0.005) {
+        cam1_idx++;
+      }
+      PRINT_INFO("Aligned cam1 to frame %d (cam1_idx: %zu)\n", start_frame, cam1_idx);
+    }
+  }
 
   PRINT_INFO(GREEN "Starting VIO processing...\n" RESET);
 
-  while (cam0_idx < cam0_data.size() && !viz->should_quit()) {
+  while (cam0_idx < actual_end_frame && !viz->should_quit()) {
 
     // Get current camera timestamp
     double cam0_time = cam0_data[cam0_idx].timestamp;
@@ -269,10 +318,10 @@ int main(int argc, char **argv) {
       viz->visualize();
 
       // Print status every 100 frames
-      if (cam0_idx % 100 == 0) {
+      if ((cam0_idx - start_frame) % 100 == 0) {
         auto state = sys->get_state();
         Eigen::Vector3d pos = state->_imu->pos();
-        PRINT_INFO("Frame %zu/%zu | Time: %.3f | Position: [%.3f, %.3f, %.3f]\n", cam0_idx, cam0_data.size(), cam0_time, pos(0), pos(1),
+        PRINT_INFO("Frame %zu/%zu | Time: %.3f | Position: [%.3f, %.3f, %.3f]\n", cam0_idx, actual_end_frame - 1, cam0_time, pos(0), pos(1),
                    pos(2));
       }
     }
@@ -281,7 +330,7 @@ int main(int argc, char **argv) {
   }
 
   PRINT_INFO(GREEN "Processing complete!\n" RESET);
-  PRINT_INFO("Processed %zu frames\n", cam0_idx);
+  PRINT_INFO("Processed %zu frames (from frame %d to frame %zu)\n", cam0_idx - start_frame, start_frame, cam0_idx - 1);
 
   // Keep windows open
   std::cout << "Press Ctrl+C to exit..." << std::endl;
